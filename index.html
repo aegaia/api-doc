@@ -1,53 +1,92 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   <title>Aegaia API – Enterprise Reference</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Fonts & Theme (keep your kit's look/feel) -->
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./docs/theme.css" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./docs/theme.css">
   <style>
-    /* keep Scalar on your dark background and full width */
-    api-reference {
+    api-reference, api-client {
       --scalar-background-1: transparent;
       --scalar-container-max-width: 100vw;
     }
-    /* simple header matching the kit */
-    .header { display:flex; align-items:center; gap:12px; padding:16px 20px; }
-    .logo-dark, .logo-light { height:28px; }
-    .logo-light { display:none; } /* dark-first by default */
-    .footer { padding:20px; text-align:center; opacity:.7; }
   </style>
 </head>
 <body>
   <header class="header">
-    <!-- point both logos to your asset; dark-first -->
-    <img class="logo-dark" src="assets/aegaia-logo.webp" alt="Aegaia" />
-    <img class="logo-light" src="assets/aegaia-logo.webp" alt="Aegaia" />
-    <h1 style="margin:0;font-size:16px;font-weight:600">Aegaia Risk API</h1>
+    <img class="logo-dark" src="assets/aegaia-logo.webp" alt="Aegaia logo (white)">
+    <img class="logo-light hidden" src="assets/aegaia-logo.webp" alt="Aegaia logo (black)">
+    <span class="spacer"></span>
+    <input id="apiKeyInput" type="password" placeholder="x-api-key" aria-label="API key">
+    <button class="btn primary" id="authorizeBtn">Authorize</button>
+    <button class="btn" id="clearBtn">Clear</button>
   </header>
 
-  <!-- Scalar web component renders the reference -->
-  <api-reference
-    url="./openapi.yaml"
-    theme="purple"
-    layout="modern"
-    dark-mode
-    meta-data='{"title":"Aegaia API Reference"}'
+  <div class="container">
+    <script
+      id="api-reference"
+      data-url="/openapi.yaml"
+      data-configuration='{
+        "layout": "modern",
+        "theme": "purple",
+        "hideDownloadButton": false,
+        "showSidebar": true,
+        "darkMode": true,
+        "withCredentials": false,
+        "tryItCredentialsPolicy": "omit",
+        "metaData": { "title": "Aegaia API Reference" }
+      }'
+    ></script>
+  </div>
 
-    hide-client-button
-    hide-test-request-button
-    document-download-type="none"
-    proxy-url=""
-  ></api-reference>
+  <footer class="footer">© </footer>
 
-  <footer class="footer">© Aegaia</footer>
-
-  <!-- Scalar web component (from CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  <script>
+    // Logo (dark-first)
+    document.querySelector('.logo-dark')?.classList.remove('hidden');
+    document.querySelector('.logo-light')?.classList.add('hidden');
+
+    // === API key persistence + Try-It header injection ===
+    const KEY_NAME = 'Aegaia_api_key';
+    const $key   = document.getElementById('apiKeyInput');
+    const $auth  = document.getElementById('authorizeBtn');
+    const $clear = document.getElementById('clearBtn');
+
+    const loadKey  = () => localStorage.getItem(KEY_NAME) || '';
+    const saveKey  = (k) => localStorage.setItem(KEY_NAME, k);
+    const clearKey = () => localStorage.removeItem(KEY_NAME);
+
+    try { const existing = loadKey(); if (existing && $key) $key.value = existing; } catch (e) {}
+
+    // Inject x-api-key into Try-It requests (Scalar uses fetch under the hood)
+    const _fetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      try {
+        const key = loadKey();
+        if (key) {
+          const headers = new Headers(init && init.headers ? init.headers : {});
+          if (!headers.has('x-api-key')) headers.set('x-api-key', key);
+          init = Object.assign({}, init, { headers });
+        }
+      } catch (e) {}
+      return _fetch(input, init);
+    };
+
+    $auth?.addEventListener('click', () => {
+      const k = ($key?.value || '').trim();
+      if (!k) return alert('Enter your x-api-key');
+      saveKey(k);
+      alert('API key saved locally.');
+    });
+
+    $clear?.addEventListener('click', () => {
+      clearKey();
+      if ($key) $key.value = '';
+      alert('API key cleared.');
+    });
+  </script>
 </body>
 </html>
