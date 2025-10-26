@@ -4,14 +4,12 @@ info:
   version: "1.0.0"
   description: |
     Private API for location-level climate & hazard risk indicators in Canada.
-    Send a single address string; receive normalized address metadata and 0–1 risk indices.
 servers:
   - url: https://api.aegaia.com
 paths:
   /:
     post:
       summary: Get risk indicators for a Canadian address
-      operationId: getRiskForAddress
       requestBody:
         required: true
         content:
@@ -22,20 +20,19 @@ paths:
               properties:
                 Address:
                   type: string
-                  description: Free-form full Canadian address.
+                  description: Full Canadian address
             examples:
               minimal:
-                summary: Minimal
                 value: { Address: "301 Chaplin Crescent Toronto M5P1B1 ON" }
       responses:
         "200":
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  Address: { type: string, description: Canonicalized address }
+                  Address: { type: string }
                   FireRiskScore: { type: number, format: float, minimum: 0, maximum: 1 }
                   FloodRiskScore: { type: number, format: float, minimum: 0, maximum: 1 }
                   HeatRiskScore: { type: number, format: float, minimum: 0, maximum: 1 }
@@ -44,40 +41,5 @@ paths:
                   Longitude: { type: number, format: float }
                   MatchConfidence: { type: number, format: float, minimum: 0, maximum: 100 }
                   Municipality: { type: string }
-                  PostalCode: { type: string, description: 6 chars, lower-cased, no space }
-                  Province: { type: string, description: Two-letter code (ON, QC, …) }
-              examples:
-                sample:
-                  summary: Example
-                  value:
-                    Address: "301 chaplin cres"
-                    FireRiskScore: 0.5354111
-                    FloodRiskScore: 0.47585854
-                    HeatRiskScore: 0.67209977
-                    Latitude: 43.70201
-                    Longitude: -79.41615
-                    MatchConfidence: 100.0
-                    Municipality: "Toronto"
-                    PostalCode: "m5p1b1"
-                    Province: "ON"
-                    WindRiskScore: 0.3267422
-        "400":
-          description: Bad Request
-        "401":
-          description: Unauthorized
-        "403":
-          description: Forbidden
-        "404":
-          description: Not Found
-        "429":
-          description: Too Many Requests
-        "500":
-          description: Server Error
-components:
-  securitySchemes:
-    apiKey:
-      type: apiKey
-      in: header
-      name: x-api-key
-security:
-  - apiKey: []
+                  PostalCode: { type: string }
+                  Province: { type: string }

@@ -36,12 +36,7 @@ a { color: var(--link); }
 }
 
 
-/* Hide any 'Open API Client' links/buttons throughout the UI */
+/* Hide 'Open API Client' affordances anywhere */
 a[title="Open API Client"],
 a[href*="openapi-client"],
-a:has(> span:contains("Open API Client")),
-button:has(> span:contains("Open API Client")),
-[data-testid="client-link"] {
-  display: none !important;
-}
-
+[data-testid="client-link"] { display: none !important; }

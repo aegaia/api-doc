@@ -5,7 +5,7 @@
   <title>Aegaia API – Enterprise Reference</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://api.aegaia.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./docs/theme.css">
   <style>
     api-reference, api-client {
@@ -41,9 +41,9 @@
     ></script>
   </div>
 
-  <footer class="footer">© Aegaia</footer>
+  <footer class="footer">© </footer>
 
-  <script src="https://api.aegaia.com/npm/@scalar/api-reference"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
   <script>
     // Logo (dark-first)
     document.querySelector('.logo-dark')?.classList.remove('hidden');
@@ -88,22 +88,5 @@
       alert('API key cleared.');
     });
   </script>
-
-<script>
-  // Remove any 'Open API Client' anchors rendered at runtime
-  const killClientLinks = () => {
-    const els = Array.from(document.querySelectorAll('a,button'));
-    els.forEach(el => {
-      const t = (el.textContent || '').trim().toLowerCase();
-      if (t.includes('open api client')) {
-        el.style.display = 'none';
-      }
-    });
-  };
-  const obs = new MutationObserver(killClientLinks);
-  obs.observe(document.documentElement, {childList:true, subtree:true});
-  killClientLinks();
-</script>
-
 </body>
 </html>
