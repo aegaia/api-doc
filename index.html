@@ -1,25 +1,91 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Aegaia Risk API — Swagger UI</title>
+  <meta charset="utf-8">
+  <title>Aegaia API – Enterprise Reference</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./docs/theme.css">
   <style>
-    body { margin: 0; }
-    .topbar { background: #0A2A66; }
-    .topbar-wrapper img { max-height: 36px; }
+    api-reference, api-client {
+      --scalar-background-1: transparent;
+      --scalar-container-max-width: 100vw;
+    }
   </style>
 </head>
 <body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <header class="header">
+    <img class="logo-dark" src="assets/aegaia-logo.webp" alt="Aegaia logo (white)">
+    <img class="logo-light hidden" src="assets/aegaia-logo.webp" alt="Aegaia logo (black)">
+    <span class="spacer"></span>
+    <input id="apiKeyInput" type="password" placeholder="x-api-key" aria-label="API key">
+    <button class="btn primary" id="authorizeBtn">Authorize</button>
+    <button class="btn" id="clearBtn">Clear</button>
+  </header>
+
+  <div class="container">
+    <script
+      id="api-reference"
+      data-url="/openapi.yaml"
+      data-configuration='{
+        "layout": "modern",
+        "theme": "purple",
+        "hideDownloadButton": false,
+        "showSidebar": true,
+        "darkMode": true,
+        "withCredentials": false,
+        "tryItCredentialsPolicy": "omit",
+        "metaData": { "title": "Aegaia API Reference" }
+      }'
+    ></script>
+  </div>
+
+  <footer class="footer">© Aegaia</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
   <script>
-    window.ui = SwaggerUIBundle({
-      url: 'openapi.yaml',
-      dom_id: '#swagger-ui',
-      presets: [SwaggerUIBundle.presets.apis],
-      layout: "BaseLayout"
+    // Logo (dark-first)
+    document.querySelector('.logo-dark')?.classList.remove('hidden');
+    document.querySelector('.logo-light')?.classList.add('hidden');
+
+    // === API key persistence + Try-It header injection ===
+    const KEY_NAME = 'Aegaia_api_key';
+    const $key   = document.getElementById('apiKeyInput');
+    const $auth  = document.getElementById('authorizeBtn');
+    const $clear = document.getElementById('clearBtn');
+
+    const loadKey  = () => localStorage.getItem(KEY_NAME) || '';
+    const saveKey  = (k) => localStorage.setItem(KEY_NAME, k);
+    const clearKey = () => localStorage.removeItem(KEY_NAME);
+
+    try { const existing = loadKey(); if (existing && $key) $key.value = existing; } catch (e) {}
+
+    // Inject x-api-key into Try-It requests (Scalar uses fetch under the hood)
+    const _fetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      try {
+        const key = loadKey();
+        if (key) {
+          const headers = new Headers(init && init.headers ? init.headers : {});
+          if (!headers.has('x-api-key')) headers.set('x-api-key', key);
+          init = Object.assign({}, init, { headers });
+        }
+      } catch (e) {}
+      return _fetch(input, init);
+    };
+
+    $auth?.addEventListener('click', () => {
+      const k = ($key?.value || '').trim();
+      if (!k) return alert('Enter your x-api-key');
+      saveKey(k);
+      alert('API key saved locally.');
+    });
+
+    $clear?.addEventListener('click', () => {
+      clearKey();
+      if ($key) $key.value = '';
+      alert('API key cleared.');
     });
   </script>
 </body>

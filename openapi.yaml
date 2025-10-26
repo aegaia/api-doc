@@ -1,46 +1,73 @@
 openapi: 3.1.0
 info:
-  title: Aegaia Risk API
-  version: v1.6-2025-09
+  title: Aegaia Property Valuation & Rent APIs
+  version: v1-2025-10-24
   description: |
-    # Aegaia Risk API
+    # Aegaia Property Valuation & Rent APIs
 
-    Returns **location-level climate & hazard risk indicators** for a Canadian address.
-    The service normalizes the address, geocodes it, and returns standardized **risk scores (0.0–1.0)**
-    with basic location metadata. Core indices:
-    - **FireRiskScore** (wildfire)
-    - **FloodRiskScore** (fluvial/pluvial/coastal composite)
-    - **HeatRiskScore** (extreme heat)
-    - **WindRiskScore** (severe wind)
+    **Enterprise APIs** for:
+    1) **Forecast** (short-term directional price tendencies and HPI-based scenarios)  
+    2) **Valuation** (point estimate, interval, confidence, provenance)  
+    3) **Rent** (point estimate, interval, confidence)  
+    4) **Rent Comparables** (when entitled; model-selected relevant leases)  
+    5) **Neighborhood Median Prices** (subject/community historical median series)  
+    6) **Neighborhood Insights** (contextual metrics derived from local market signals)  
+    7) **Investment Insights** (cap rate helpers, yield context, liquidity)  
+    8) **Cap Rate** (estimated cap rate range/point when supported)  
+    9) **Liquidity** (marketability/liquidity score)  
+    10) **Risk of Decline** (downside/softness indicators where available)  
+    11) **Trends & HPI-Adjusted Scenarios** (index series & historical price adjustments)
 
-    **Metadata**: Latitude, Longitude, MatchConfidence (0–100), Address, Municipality, PostalCode, Province.
+    Built for institutional accuracy, high availability, and secure scale.
 
-    ## Base URL & Versioning
-    - **Base**: `https://api.aegaia.com/`
-    - **Method**: `POST /` (root)
-    - **Content-Type**: `application/json`
-    - **Version header (recommended)**: `Accept: application/vnd.aegaia.v1+json`
+    ## API portfolio
 
-    ## Authentication & Security
-    - **API Key**: `x-api-key: <YOUR_API_KEY>`
-    - **Recommended client behavior**: retries with jitter, `Idempotency-Key`, IP allowlisting.
+    ### Aegaia Unified API (recommended)
+    A **single endpoint** at **`https://api.Aegaia.com`** that accepts **any of the request schemas** used by the older APIs:
+    - the **Unified** normalized schema (title-cased `Address` + optional attributes)
+    - the **Forecast** schema (lowercase `address`, `isCondo`, `condition`, and `attributes` object)
+    - the **Off-Market** bulk schema (`schema` + `values` rows)
 
-    ## Rate Limits, SLAs, Errors
-    - Quotas per minute/day with **HTTP 429** on exceed; honor `Retry-After`.
-    - Availability: 99.5% standard; 99.9% enterprise add-on.
-    - Canonical errors: 400/401/403/404/429/5xx with JSON `{ "message": ... }`.
-  x-logo:
-    url: ./assets/aegaia-logo.svg
-    altText: Aegaia
-    backgroundColor: "#FFFFFF"
+    **Why it matters**
+    - **Zero-code migration**: if you're already using Forecast or Off-Market, simply ask Aegaia to **move your API key to the Unified usage plan**, then
+      **change only your endpoint** to `https://api.Aegaia.com`. **No payload changes** required; Unified natively understands your existing schema.
+    - **One endpoint, all signals**: forecast, valuation, rent, rent comps, neighborhood medians/insights, investment insights, cap rate, liquidity, risk of decline, and HPI-adjusted scenarios—returned via a consistent response envelope.
+    - **Best-path routing**: the platform chooses the most appropriate model pathway based on request content and coverage.
+    - **Easier governance**: single egress allow-list, single set of controls and usage quotas, consistent error semantics.
 
-servers:
-  - url: https://api.aegaia.com
-    description: Production
+    ### Forecast API
+    **Address-first**, automation-heavy valuation & rent. Validates/completes addresses and infers missing attributes.
+    Ideal for quick single-property workflows and lighter integrations.
 
-tags:
-  - name: Risk
-    description: Location-level climate & hazard risk indices for Canadian addresses.
+    ### Off-Market API
+    **Attributes-first**, **bulk-fast** valuation & rent for known portfolios. You provide an explicit `schema` and rows of values.
+    Ideal for portfolio runs and “what-if” scenarios at scale.
+
+    ## How requests are processed (high level)
+    1. **Address & attribute normalization** → canonical forms, geocoding, consistency checks  
+    2. **Coverage decision** → AVM pathway vs. index/HPI pathway based on requested signals, property type, and data density  
+    3. **Model execution** → valuation/rent core + auxiliary signals (cap rate, liquidity, neighborhood medians/insights)  
+    4. **Confidence & intervals** → value/lease ranges, confidence measures, provenance flags  
+    5. **Entitlement shaping** → response sections omitted or null if not enabled for your key
+
+    ## Historical precedence (HPI-adjusted scenarios)
+    If you provide **HistoricalValue + HistoricalValueYearMonth (YYYY-MM)** (or date) + **HistoricalPropertyType**, the service can compute an **HPI-adjusted** valuation that may take precedence as the **primary** estimate (provenance `HA`) when appropriate.
+
+    ## Entitlements
+    Responses are entitlement-aware. Fields and sections (e.g., rent comparables, neighborhood datasets, risk metrics) may be omitted/null depending on
+    your key, region, and data rights.
+
+    ## Security & idempotency
+    - **Authentication**: `x-api-key` header (see Security Schemes below)  
+    - **Idempotency** (optional): `Idempotency-Key` header (UUID v4) for safe retries
+
+    ## Migration guide (to Aegaia Unified)
+    1. **Contact Aegaia** to assign your existing API key to the **Unified usage plan**.  
+    2. **Change only the endpoint**:
+       - From Forecast **`/forecastclient` (AWS API Gateway)** or Off-Market **`/offmarketclient` (AWS)**
+       - **To**: `https://api.Aegaia.com` (root)
+    3. **Keep the exact same body** you already send today. Unified auto-detects whether it’s a Forecast-style or Off-Market-style request.  
+    4. Validate results; compare value/rent intervals and provenance (`A`, `H`, `HA`) as needed.
 
 components:
   securitySchemes:
@@ -50,195 +77,362 @@ components:
       name: x-api-key
 
   parameters:
-    AcceptVersion:
-      name: Accept
-      in: header
-      required: false
-      description: Versioned media type (recommended).
-      schema:
-        type: string
-        example: application/vnd.aegaia.v1+json
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: false
-      description: Optional UUID v4 for idempotent retries.
       schema:
         type: string
-        example: 2b1f9f40-2c8e-4572-9ac1-2fbf2f1f9a4c
-
-  headers:
-    RetryAfter:
-      description: Seconds to wait before retrying (for 429).
-      schema: { type: integer }
+      description: Optional UUID v4 to make requests idempotent.
 
   schemas:
-    RiskRequest:
+    # ======================================
+    # Request schemas
+    # ======================================
+
+    # Unified normalized (title-cased Address + optional attributes)
+    UnifiedNormalizedRequest:
       type: object
+      additionalProperties: true
       required: [Address]
-      additionalProperties: false
       properties:
-        Address:
-          type: string
-          description: Free-form full Canadian address.
-          example: "301 Chaplin Crescent Toronto M5P1B1 ON"
+        Address: { type: string, example: "297 Chaplin Cres" }
+        PostalCode: { type: string, nullable: true, example: "M5P 1B1" }
+        AptNum: { type: string, nullable: true }
+        Municipality: { type: string, nullable: true, example: "Toronto" }
+        Province: { type: string, nullable: true, example: "ON" }
+        Bedrooms: { type: integer, nullable: true, example: 3 }
+        Den: { type: integer, nullable: true, example: 1 }
+        Washrooms: { type: integer, nullable: true, example: 3 }
+        ParkingSpaces: { type: integer, nullable: true, example: 2 }
+        Pool: { type: string, nullable: true, example: "None" }
+        Basement: { type: string, nullable: true, example: "Finished" }
+        Kitchens: { type: integer, nullable: true, example: 1 }
+        PropertyType: { type: string, nullable: true, example: "Detached" }
+        Style: { type: string, nullable: true, example: "1-Storey" }
+        RoomsArea: { type: number, nullable: true, example: 2000 }
+        LotArea: { type: number, nullable: true, example: 5000 }
+        Condition: { type: integer, nullable: true, example: 3 }
+        Age: { type: string, nullable: true, example: "31-50" }
+        AC: { type: string, nullable: true, example: "Central" }
+        HistValue: { type: number, nullable: true }
+        HistValueDate: { type: string, format: date, nullable: true }
+        HistPropertyType: { type: string, nullable: true }
+        GarageType: { type: string, nullable: true }
+        GarageSpaces: { type: integer, nullable: true }
+        MaintenanceFee: { type: number, nullable: true }
+        MaintenanceFeeYear: { type: integer, nullable: true }
+        BuildingArea: { type: number, nullable: true }
 
-    RiskResponse:
+    # Forecast-style (address-first + attributes)
+    ForecastRequest:
+      type: object
+      additionalProperties: true
+      required: [address, isCondo, condition]
+      properties:
+        address: { type: string, example: "299 chaplin cres" }
+        attributes:
+          type: object
+          additionalProperties: true
+          properties:
+            City: { type: string, example: "Toronto" }
+            PostalCode: { type: string, example: "m5p1b1" }
+            NumBedrooms: { type: string, example: "3" }
+            NumDens: { type: string, example: "1" }
+            NumBathrooms: { type: string, example: "2" }
+            NumParkingSpaces: { type: string, example: "1" }
+            Pool: { type: string, example: "Inground" }
+            BasementType: { type: string, example: "Finished" }
+            NumKitchens: { type: string, example: "2" }
+            PropertyType: { type: string, example: "Detached" }
+            BuildingStyle: { type: string, example: "3-Storey" }
+            RoomsArea: { type: string, example: "1600" }
+            LotArea: { type: string, example: "3300" }
+            Age: { type: string, example: "51-99" }
+            AirConditioning: { type: string, example: "Central Air" }
+            Sqft: { type: string, nullable: true, example: null }
+        aptNum: { type: string, example: "" }
+        isCondo: { type: boolean, example: false }
+        condition: { type: integer, example: 3 }
+
+    # Off-Market-style (schema + values rows) for bulk/attributes-first
+    OffMarketRequest:
       type: object
       additionalProperties: false
+      required: [schema, values]
       properties:
-        Address:
-          type: string
-          description: Normalized street format.
-          example: "301 chaplin cres"
-        FireRiskScore:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          example: 0.5354111
-        FloodRiskScore:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          example: 0.47585854
-        HeatRiskScore:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          example: 0.67209977
-        WindRiskScore:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          example: 0.3267422
-        Latitude:
-          type: number
-          format: float
-          example: 43.70201
-        Longitude:
-          type: number
-          format: float
-          example: -79.41615
-        MatchConfidence:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 100
-          example: 100.0
-        Municipality:
-          type: string
-          example: "Toronto"
-        PostalCode:
-          type: string
-          description: Lower-cased 6-character postal code (no space).
-          example: "m5p1b1"
-        Province:
-          type: string
-          description: Two-letter province code.
-          example: "ON"
+        schema:
+          type: array
+          description: Column names (property fields) in the exact order used by each row in `values`.
+          items: { type: string }
+        values:
+          type: array
+          description: Rows of values, each row aligned to the `schema` order.
+          items:
+            type: array
+            items: { type: string }
+      example:
+        schema: ["Address","AptNum","City","NumBedrooms","NumDens","NumBathrooms","NumParkingSpaces","Pool","BasementType","NumKitchens","PropertyType","BuildingStyle","RoomsArea","LotArea","Condition","Age","AirConditioning","HistoricalValue","HistoricalValueYearMonth","HistoricalPropertyType","PostalCode"]
+        values:
+          - ["1773 Meadowview Ave","","Pickering","4","2","3","1","Inground","Finished","1","Detached","2-Storey","2000","4700","3","Unknown","Central Air","","","Detached","L1V3G7"]
 
+    # ======================================
+    # Response envelope (entitlement-aware)
+    # ======================================
+    ApiResponse:
+      type: object
+      additionalProperties: true
+      description: |
+        Response envelope. Sections may be omitted/null based on entitlements and coverage.
+      properties:
+        Request:
+          type: object
+          additionalProperties: true
+          description: Echo of parsed/normalized input
+        Report:
+          type: object
+          additionalProperties: true
+          description: |
+            Core outputs plus (when entitled) rent comps, neighborhood medians/insights, investment insights,
+            risk indicators, and series for trends/HPI analyses.
+          properties:
+            Aegaia_value: { type: number, nullable: true }
+            value_low: { type: number, nullable: true }
+            value_high: { type: number, nullable: true }
+            valuation_confidence: { type: integer, minimum: 0, maximum: 100, nullable: true }
+            Aegaia_lease: { type: number, nullable: true }
+            lease_low: { type: number, nullable: true }
+            lease_high: { type: number, nullable: true }
+            lease_confidence: { type: integer, minimum: 0, maximum: 100, nullable: true }
+            Aegaia_cap_rate: { type: number, nullable: true }
+            liquidity_score: { type: number, minimum: 0, maximum: 1, nullable: true }
+            risk_of_decline: { type: number, minimum: 0, maximum: 1, nullable: true, description: "1 = highest risk (when entitled)" }
+            valuation_source:
+              type: string
+              enum: ["A","H","HA"]
+              nullable: true
+              description: |
+                A = AVM (full model pathway)
+                H = Index-based (median)
+                HA = HPI-adjusted using provided historicals
+            bedrooms_source:
+              type: string
+              enum: ["A","E"]
+              nullable: true
+              description: A=actual, E=estimated (rent bedroom provenance)
+        Price:
+          type: array
+          description: Historical **subject/community median price** series (for trends & neighborhood medians).
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              value: { type: number }
+        CommunityPrice:
+          type: array
+          description: Community-level price series (when entitled).
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              value: { type: number }
+
+tags:
+  - name: Aegaia Unified API
+    description: Single endpoint for forecast, valuation, rent, rent comps, neighborhood medians/insights, investment insights, cap rate, liquidity, risk of decline, and HPI-adjusted scenarios. Accepts Unified, Forecast, **or** Off-Market request schemas.
+  - name: Forecast
+    description: Address-first automated valuation & rent.
+  - name: Off-Market
+    description: Attributes-first high-throughput valuation & rent for portfolios.
+
+# EXACT SAME AUTH STYLE FOR ALL THREE: global ApiKeyAuth only.
 security:
   - ApiKeyAuth: []
 
 paths:
+  # ========================================
+  # 1) Aegaia Unified API (recommended)
+  # ========================================
   "/":
     post:
-      tags: [Risk]
-      operationId: getRiskByAddress
-      summary: Get climate & hazard risk indices for a Canadian address
+      tags: [Aegaia Unified API]
+      operationId: unifiedEstimate
+      summary: Unified forecast / valuation / rent / comps / insights / cap rate / liquidity / risk / trends
       description: |
-        Provide a free-form Canadian address; the service normalizes, geocodes, and returns standardized
-        risk indices (0.0–1.0) with metadata.
+        **POST `https://api.Aegaia.com`** (root). Unified automatically accepts **any** of:
+        - Unified normalized schema (title-cased Address fields)
+        - Forecast schema (lower-case address + attributes)
+        - Off-Market bulk schema (schema + values rows)
+
+        Use **Idempotency-Key** for safe retries. Contact Aegaia to move your key to the **Unified usage plan**.
+      servers:
+        - url: https://api.Aegaia.com
+          description: Unified base (root path)
       parameters:
-        - $ref: '#/components/parameters/AcceptVersion'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RiskRequest'
+              oneOf:
+                - $ref: '#/components/schemas/UnifiedNormalizedRequest'
+                - $ref: '#/components/schemas/ForecastRequest'
+                - $ref: '#/components/schemas/OffMarketRequest'
             examples:
-              minimal:
-                summary: Minimal address-only request
+              unifiedNormalized:
+                summary: Unified normalized (address + attributes)
                 value:
-                  Address: "301 Chaplin Crescent Toronto M5P1B1 ON"
+                  Address: "297 Chaplin Cres"
+                  PostalCode: "M5P 1B1"
+                  Municipality: "Toronto"
+                  Province: "ON"
+                  Bedrooms: 3
+                  Condition: 3
+              forecastStyle:
+                summary: Forecast-style (address/isCondo/condition + attributes)
+                value:
+                  address: "299 chaplin cres"
+                  attributes:
+                    City: "Toronto"
+                    PostalCode: "m5p1b1"
+                    NumBedrooms: "3"
+                    PropertyType: "Detached"
+                    BuildingStyle: "3-Storey"
+                  aptNum: ""
+                  isCondo: false
+                  condition: 3
+              offMarketStyle:
+                summary: Off-Market-style (schema + values rows)
+                value:
+                  schema: ["Address","City","NumBedrooms","PropertyType","PostalCode"]
+                  values:
+                    - ["1773 Meadowview Ave","Pickering","4","Detached","L1V3G7"]
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RiskResponse'
-              examples:
-                sample:
-                  summary: Successful example
-                  value:
-                    Address: "301 chaplin cres"
-                    FireRiskScore: 0.5354111
-                    FloodRiskScore: 0.47585854
-                    HeatRiskScore: 0.67209977
-                    Latitude: 43.70201
-                    Longitude: -79.41615
-                    MatchConfidence: 100.0
-                    Municipality: "Toronto"
-                    PostalCode: "m5p1b1"
-                    Province: "ON"
-                    WindRiskScore: 0.3267422
-        "400":
-          description: Bad Request (malformed JSON or missing fields)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message: { type: string, example: "Invalid request body or missing required parameter." }
-        "401":
-          description: Unauthorized (missing/invalid key)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message: { type: string, example: "Unauthorized" }
-        "403":
-          description: Forbidden (key lacks permission)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message: { type: string, example: "Forbidden" }
-        "404":
-          description: Not Found (invalid path)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message: { type: string, example: "Route not found" }
-        "429":
-          description: Too Many Requests (rate limit exceeded)
-          headers:
-            Retry-After:
-              $ref: '#/components/headers/RetryAfter'
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message: { type: string, example: "Rate limit exceeded" }
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message: { type: string, example: "Internal server error" }
+                $ref: '#/components/schemas/ApiResponse'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized (missing/invalid key) }
+        '404': { description: Address not found / not enough info }
+        '429': { description: Too Many Requests }
+        '500': { description: Internal Server Error }
       security:
         - ApiKeyAuth: []
+
+  # ==========================================
+  # 2) Forecast API (legacy; unchanged)
+  # ==========================================
+  "/forecastclient":
+    post:
+      tags: [Forecast]
+      operationId: forecastEstimate
+      summary: Forecast valuation/rent (address-first, automated)
+      description: >
+        Provide an address (optional attributes/historicals). If postal code is missing, the service runs internal
+        address completion & verification before computing insights.
+      servers:
+        - url: https://2dbgwzjfcj.execute-api.ca-central-1.amazonaws.com
+          description: Forecast (AWS API Gateway)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForecastRequest'
+            examples:
+              addressOnly:
+                summary: Minimal address-first
+                value:
+                  address: "299 chaplin cres"
+                  aptNum: ""
+                  isCondo: false
+                  condition: 3
+                  attributes:
+                    PostalCode: "m5p1b1"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized (missing/invalid key) }
+        '403': { description: Forbidden (feature not enabled) }
+        '429': { description: Too Many Requests }
+        '500': { description: Internal Server Error }
+      security:
+        - ApiKeyAuth: []
+
+  # ==========================================
+  # 3) Off-Market API (legacy; unchanged)
+  # ==========================================
+  "/offmarketclient":
+    post:
+      tags: [Off-Market]
+      operationId: offMarketEstimate
+      summary: Off-Market valuation/rent (attributes-first, bulk-fast)
+      description: >
+        Provide an ordered **`schema`** array and **`values`** rows aligned to that schema. You must send correct address elements
+        (address + postal code recommended). Ideal for portfolio runs and scenario testing.
+      servers:
+        - url: https://bnvj1sypu4.execute-api.ca-central-1.amazonaws.com
+          description: Off-Market (AWS API Gateway)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OffMarketRequest'
+            examples:
+              attributesFirst:
+                summary: Minimal bulk row
+                value:
+                  # >>> Updated per your request (format exactly as provided) <<<
+                  schema:
+                    - "1773 Meadowview Ave"
+                    - "L1V3G7"
+                    - ""
+                    - "Pickering"
+                    - "4"
+                    - "2"
+                    - "3"
+                    - "4"
+                    - "Inground"
+                    - "Finished"
+                    - "1"
+                    - "Detached"
+                    - "2-Storey"
+                    - "2000"
+                    - "4700"
+                    - "3"
+                    - "Unknown"
+                    - "Central Air"
+                    - "null"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized (missing/invalid key) }
+        '403': { description: Forbidden (feature not enabled) }
+        '429': { description: Too Many Requests }
+        '500': { description: Internal Server Error }
+      security:
+        - ApiKeyAuth: []
+
+
+
+
+
