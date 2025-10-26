@@ -1,0 +1,244 @@
+openapi: 3.1.0
+info:
+  title: Aegaia Risk API
+  version: v1.6-2025-09
+  description: |
+    # Aegaia Risk API
+
+    Returns **location-level climate & hazard risk indicators** for a Canadian address.
+    The service normalizes the address, geocodes it, and returns standardized **risk scores (0.0–1.0)**
+    with basic location metadata. Core indices:
+    - **FireRiskScore** (wildfire)
+    - **FloodRiskScore** (fluvial/pluvial/coastal composite)
+    - **HeatRiskScore** (extreme heat)
+    - **WindRiskScore** (severe wind)
+
+    **Metadata**: Latitude, Longitude, MatchConfidence (0–100), Address, Municipality, PostalCode, Province.
+
+    ## Base URL & Versioning
+    - **Base**: `https://api.aegaia.com/`
+    - **Method**: `POST /` (root)
+    - **Content-Type**: `application/json`
+    - **Version header (recommended)**: `Accept: application/vnd.aegaia.v1+json`
+
+    ## Authentication & Security
+    - **API Key**: `x-api-key: <YOUR_API_KEY>`
+    - **Recommended client behavior**: retries with jitter, `Idempotency-Key`, IP allowlisting.
+
+    ## Rate Limits, SLAs, Errors
+    - Quotas per minute/day with **HTTP 429** on exceed; honor `Retry-After`.
+    - Availability: 99.5% standard; 99.9% enterprise add-on.
+    - Canonical errors: 400/401/403/404/429/5xx with JSON `{ "message": ... }`.
+  x-logo:
+    url: ./assets/aegaia-logo.svg
+    altText: Aegaia
+    backgroundColor: "#FFFFFF"
+
+servers:
+  - url: https://api.aegaia.com
+    description: Production
+
+tags:
+  - name: Risk
+    description: Location-level climate & hazard risk indices for Canadian addresses.
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+
+  parameters:
+    AcceptVersion:
+      name: Accept
+      in: header
+      required: false
+      description: Versioned media type (recommended).
+      schema:
+        type: string
+        example: application/vnd.aegaia.v1+json
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Optional UUID v4 for idempotent retries.
+      schema:
+        type: string
+        example: 2b1f9f40-2c8e-4572-9ac1-2fbf2f1f9a4c
+
+  headers:
+    RetryAfter:
+      description: Seconds to wait before retrying (for 429).
+      schema: { type: integer }
+
+  schemas:
+    RiskRequest:
+      type: object
+      required: [Address]
+      additionalProperties: false
+      properties:
+        Address:
+          type: string
+          description: Free-form full Canadian address.
+          example: "301 Chaplin Crescent Toronto M5P1B1 ON"
+
+    RiskResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        Address:
+          type: string
+          description: Normalized street format.
+          example: "301 chaplin cres"
+        FireRiskScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.5354111
+        FloodRiskScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.47585854
+        HeatRiskScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.67209977
+        WindRiskScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.3267422
+        Latitude:
+          type: number
+          format: float
+          example: 43.70201
+        Longitude:
+          type: number
+          format: float
+          example: -79.41615
+        MatchConfidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          example: 100.0
+        Municipality:
+          type: string
+          example: "Toronto"
+        PostalCode:
+          type: string
+          description: Lower-cased 6-character postal code (no space).
+          example: "m5p1b1"
+        Province:
+          type: string
+          description: Two-letter province code.
+          example: "ON"
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  "/":
+    post:
+      tags: [Risk]
+      operationId: getRiskByAddress
+      summary: Get climate & hazard risk indices for a Canadian address
+      description: |
+        Provide a free-form Canadian address; the service normalizes, geocodes, and returns standardized
+        risk indices (0.0–1.0) with metadata.
+      parameters:
+        - $ref: '#/components/parameters/AcceptVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskRequest'
+            examples:
+              minimal:
+                summary: Minimal address-only request
+                value:
+                  Address: "301 Chaplin Crescent Toronto M5P1B1 ON"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskResponse'
+              examples:
+                sample:
+                  summary: Successful example
+                  value:
+                    Address: "301 chaplin cres"
+                    FireRiskScore: 0.5354111
+                    FloodRiskScore: 0.47585854
+                    HeatRiskScore: 0.67209977
+                    Latitude: 43.70201
+                    Longitude: -79.41615
+                    MatchConfidence: 100.0
+                    Municipality: "Toronto"
+                    PostalCode: "m5p1b1"
+                    Province: "ON"
+                    WindRiskScore: 0.3267422
+        "400":
+          description: Bad Request (malformed JSON or missing fields)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "Invalid request body or missing required parameter." }
+        "401":
+          description: Unauthorized (missing/invalid key)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "Unauthorized" }
+        "403":
+          description: Forbidden (key lacks permission)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "Forbidden" }
+        "404":
+          description: Not Found (invalid path)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "Route not found" }
+        "429":
+          description: Too Many Requests (rate limit exceeded)
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "Rate limit exceeded" }
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "Internal server error" }
+      security:
+        - ApiKeyAuth: []
