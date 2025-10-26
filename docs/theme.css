@@ -34,3 +34,14 @@ a { color: var(--link); }
   .header { flex-wrap: wrap; gap: 8px; }
   .header .shortcut { padding: 6px 8px; }
 }
+
+
+/* Hide any 'Open API Client' links/buttons throughout the UI */
+a[title="Open API Client"],
+a[href*="openapi-client"],
+a:has(> span:contains("Open API Client")),
+button:has(> span:contains("Open API Client")),
+[data-testid="client-link"] {
+  display: none !important;
+}
+
