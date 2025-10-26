@@ -5,87 +5,49 @@
   <title>Aegaia API – Enterprise Reference</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Fonts & Theme (keeps your look/feel) -->
+  <!-- Fonts & Theme (keep your kit's look/feel) -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./docs/theme.css" />
 
   <style>
-    /* Keep Scalar container full-width with your dark background */
-    api-reference, api-client {
+    /* keep Scalar on your dark background and full width */
+    api-reference {
       --scalar-background-1: transparent;
       --scalar-container-max-width: 100vw;
     }
-
-    /* Simple header that matches the kit */
-    .header {
-      display:flex; align-items:center; gap:12px; padding:16px 20px;
-    }
-    .logo-dark, .logo-light { height: 28px; }
+    /* simple header matching the kit */
+    .header { display:flex; align-items:center; gap:12px; padding:16px 20px; }
+    .logo-dark, .logo-light { height:28px; }
     .logo-light { display:none; } /* dark-first by default */
-    .footer {
-      padding: 20px; text-align: center; opacity: .7;
-    }
+    .footer { padding:20px; text-align:center; opacity:.7; }
   </style>
 </head>
 <body>
-  <div id="app-root">
-    <header class="header">
-      <!-- Dark/Light logos (both point to your Aegaia logo asset) -->
-      <img class="logo-dark" src="assets/aegaia-logo.webp" alt="Aegaia" />
-      <img class="logo-light" src="assets/aegaia-logo.webp" alt="Aegaia" />
-      <h1 style="margin:0;font-size:16px;font-weight:600">Aegaia Risk API</h1>
-    </header>
+  <header class="header">
+    <!-- point both logos to your asset; dark-first -->
+    <img class="logo-dark" src="assets/aegaia-logo.webp" alt="Aegaia" />
+    <img class="logo-light" src="assets/aegaia-logo.webp" alt="Aegaia" />
+    <h1 style="margin:0;font-size:16px;font-weight:600">Aegaia Risk API</h1>
+  </header>
 
-    <!-- Scalar renders here -->
-    <div id="app"></div>
+  <!-- Scalar web component renders the reference -->
+  <api-reference
+    url="./openapi.yaml"
+    theme="purple"
+    layout="modern"
+    dark-mode
+    meta-data='{"title":"Aegaia API Reference"}'
 
-    <footer class="footer">© Aegaia</footer>
-  </div>
+    hide-client-button
+    hide-test-request-button
+    document-download-type="none"
+    proxy-url=""
+  ></api-reference>
 
-  <!-- Scalar API Reference from CDN -->
+  <footer class="footer">© Aegaia</footer>
+
+  <!-- Scalar web component (from CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-
-  <!-- Initialize Scalar (Option C) -->
-  <script>
-    // Optional: flip logos based on system theme
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (!prefersDark) {
-      document.querySelector('.logo-dark')?.classList.add('hidden');
-      document.querySelector('.logo-light')?.classList.remove('hidden');
-    }
-
-    Scalar.createApiReference('#app', {
-      // IMPORTANT: use a local, private spec path (don’t point to public URLs)
-      url: './openapi.yaml',
-
-      // Keep your look & feel
-      theme: 'purple',            // adjust if your theme.css expects a different theme key
-      darkMode: true,             // dark background
-      layout: 'modern',           // left nav + content
-      metaData: { title: 'Aegaia API Reference' },
-
-      // Make this a PRIVATE viewer (no public client/testing/download)
-      hideClientButton: true,      // removes “Open API Client”
-      hideTestRequestButton: true, // removes “Try It” buttons
-      documentDownloadType: 'none',// hides spec download
-      proxyUrl: null,              // avoid proxy.scalar.com; fetch directly from your origin
-
-      // Extras / safe defaults
-      withCredentials: false,
-      tryItCredentialsPolicy: 'omit',
-      showSidebar: true
-    });
-
-    // Safety net: if any “Open API Client” UI appears dynamically, hide it
-    const nukeClientLinks = () => {
-      document.querySelectorAll('a,button').forEach(el => {
-        const t = (el.textContent || '').toLowerCase();
-        if (t.includes('open api client')) el.style.display = 'none';
-      });
-    };
-    new MutationObserver(nukeClientLinks).observe(document.documentElement, { childList: true, subtree: true });
-    nukeClientLinks();
-  </script>
 </body>
 </html>
