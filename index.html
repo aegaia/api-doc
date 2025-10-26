@@ -1,92 +1,91 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>Aegaia API – Enterprise Reference</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./docs/theme.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Fonts & Theme (keeps your look/feel) -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./docs/theme.css" />
+
   <style>
+    /* Keep Scalar container full-width with your dark background */
     api-reference, api-client {
       --scalar-background-1: transparent;
       --scalar-container-max-width: 100vw;
     }
+
+    /* Simple header that matches the kit */
+    .header {
+      display:flex; align-items:center; gap:12px; padding:16px 20px;
+    }
+    .logo-dark, .logo-light { height: 28px; }
+    .logo-light { display:none; } /* dark-first by default */
+    .footer {
+      padding: 20px; text-align: center; opacity: .7;
+    }
   </style>
 </head>
 <body>
-  <header class="header">
-    <img class="logo-dark" src="assets/aegaia-logo.webp" alt="Aegaia logo (white)">
-    <img class="logo-light hidden" src="assets/aegaia-logo.webp" alt="Aegaia logo (black)">
-    <span class="spacer"></span>
-    <input id="apiKeyInput" type="password" placeholder="x-api-key" aria-label="API key">
-    <button class="btn primary" id="authorizeBtn">Authorize</button>
-    <button class="btn" id="clearBtn">Clear</button>
-  </header>
+  <div id="app-root">
+    <header class="header">
+      <!-- Dark/Light logos (both point to your Aegaia logo asset) -->
+      <img class="logo-dark" src="assets/aegaia-logo.webp" alt="Aegaia" />
+      <img class="logo-light" src="assets/aegaia-logo.webp" alt="Aegaia" />
+      <h1 style="margin:0;font-size:16px;font-weight:600">Aegaia Risk API</h1>
+    </header>
 
-  <div class="container">
-    <script
-      id="api-reference"
-      data-url="/openapi.yaml"
-      data-configuration='{
-        "layout": "modern",
-        "theme": "purple",
-        "hideDownloadButton": false,
-        "showSidebar": true,
-        "darkMode": true,
-        "withCredentials": false,
-        "tryItCredentialsPolicy": "omit",
-        "metaData": { "title": "Aegaia API Reference" }
-      }'
-    ></script>
+    <!-- Scalar renders here -->
+    <div id="app"></div>
+
+    <footer class="footer">© Aegaia</footer>
   </div>
 
-  <footer class="footer">© </footer>
-
+  <!-- Scalar API Reference from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+
+  <!-- Initialize Scalar (Option C) -->
   <script>
-    // Logo (dark-first)
-    document.querySelector('.logo-dark')?.classList.remove('hidden');
-    document.querySelector('.logo-light')?.classList.add('hidden');
+    // Optional: flip logos based on system theme
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (!prefersDark) {
+      document.querySelector('.logo-dark')?.classList.add('hidden');
+      document.querySelector('.logo-light')?.classList.remove('hidden');
+    }
 
-    // === API key persistence + Try-It header injection ===
-    const KEY_NAME = 'Aegaia_api_key';
-    const $key   = document.getElementById('apiKeyInput');
-    const $auth  = document.getElementById('authorizeBtn');
-    const $clear = document.getElementById('clearBtn');
+    Scalar.createApiReference('#app', {
+      // IMPORTANT: use a local, private spec path (don’t point to public URLs)
+      url: './openapi.yaml',
 
-    const loadKey  = () => localStorage.getItem(KEY_NAME) || '';
-    const saveKey  = (k) => localStorage.setItem(KEY_NAME, k);
-    const clearKey = () => localStorage.removeItem(KEY_NAME);
+      // Keep your look & feel
+      theme: 'purple',            // adjust if your theme.css expects a different theme key
+      darkMode: true,             // dark background
+      layout: 'modern',           // left nav + content
+      metaData: { title: 'Aegaia API Reference' },
 
-    try { const existing = loadKey(); if (existing && $key) $key.value = existing; } catch (e) {}
+      // Make this a PRIVATE viewer (no public client/testing/download)
+      hideClientButton: true,      // removes “Open API Client”
+      hideTestRequestButton: true, // removes “Try It” buttons
+      documentDownloadType: 'none',// hides spec download
+      proxyUrl: null,              // avoid proxy.scalar.com; fetch directly from your origin
 
-    // Inject x-api-key into Try-It requests (Scalar uses fetch under the hood)
-    const _fetch = window.fetch.bind(window);
-    window.fetch = (input, init = {}) => {
-      try {
-        const key = loadKey();
-        if (key) {
-          const headers = new Headers(init && init.headers ? init.headers : {});
-          if (!headers.has('x-api-key')) headers.set('x-api-key', key);
-          init = Object.assign({}, init, { headers });
-        }
-      } catch (e) {}
-      return _fetch(input, init);
+      // Extras / safe defaults
+      withCredentials: false,
+      tryItCredentialsPolicy: 'omit',
+      showSidebar: true
+    });
+
+    // Safety net: if any “Open API Client” UI appears dynamically, hide it
+    const nukeClientLinks = () => {
+      document.querySelectorAll('a,button').forEach(el => {
+        const t = (el.textContent || '').toLowerCase();
+        if (t.includes('open api client')) el.style.display = 'none';
+      });
     };
-
-    $auth?.addEventListener('click', () => {
-      const k = ($key?.value || '').trim();
-      if (!k) return alert('Enter your x-api-key');
-      saveKey(k);
-      alert('API key saved locally.');
-    });
-
-    $clear?.addEventListener('click', () => {
-      clearKey();
-      if ($key) $key.value = '';
-      alert('API key cleared.');
-    });
+    new MutationObserver(nukeClientLinks).observe(document.documentElement, { childList: true, subtree: true });
+    nukeClientLinks();
   </script>
 </body>
 </html>
